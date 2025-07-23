@@ -46,6 +46,19 @@ def init_db():
         """)
 
         cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+          id SERIAL PRIMARY KEY,
+          chat_id BIGINT NOT NULL,
+          title TEXT,
+          description TEXT,
+          deadline TIMESTAMP,
+          responsible_id BIGINT,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        cursor.execute("""
                        CREATE TABLE IF NOT EXISTS sprint_tasks
                        (
                            id             SERIAL PRIMARY KEY,
@@ -391,6 +404,95 @@ def get_active_sprints() -> list[dict]:
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT * FROM sprints WHERE is_active=TRUE")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return rows
+
+
+def create_task(chat_id: int,
+                title: str,
+                description: str | None = None,
+                deadline: datetime | None = None,
+                responsible_id: int | None = None) -> int:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO tasks (chat_id, title, description, deadline, responsible_id)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (chat_id, title, description, deadline, responsible_id)
+    )
+    task_id = cursor.fetchone()[0]
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return task_id
+
+
+def update_task(task_id: int,
+                title: str | None = None,
+                description: str | None = None,
+                deadline: datetime | None = None,
+                responsible_id: int | None = None,
+                status: str | None = None):
+    fields = []
+    values = []
+    if title is not None:
+        fields.append("title=%s")
+        values.append(title)
+    if description is not None:
+        fields.append("description=%s")
+        values.append(description)
+    if deadline is not None:
+        fields.append("deadline=%s")
+        values.append(deadline)
+    if responsible_id is not None:
+        fields.append("responsible_id=%s")
+        values.append(responsible_id)
+    if status is not None:
+        fields.append("status=%s")
+        values.append(status)
+
+    if not fields:
+        return
+
+    set_clause = ", ".join(fields)
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = f"UPDATE tasks SET {set_clause} WHERE id=%s"
+    cursor.execute(query, (*values, task_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def get_tasks_for_user(user_id: int) -> list[dict]:
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute(
+        "SELECT * FROM tasks WHERE responsible_id=%s AND status='pending'",
+        (user_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return rows
+
+
+def get_tasks_due_soon(delta_hours: int = 24) -> list[dict]:
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute(
+        """
+        SELECT * FROM tasks
+        WHERE status='pending' AND deadline IS NOT NULL
+          AND deadline <= (NOW() + INTERVAL '%s hour')
+        """,
+        (delta_hours,)
+    )
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
