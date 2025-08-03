@@ -13,4 +13,4 @@ RUN pip install --no-cache-dir --use-deprecated=legacy-resolver -r requirements.
 
 COPY . .
 
-CMD ["python", "-m", "bitrix_bot"]
+CMD ["python", "-m", "local_bot.main"]
