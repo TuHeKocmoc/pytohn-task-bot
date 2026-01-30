@@ -39,7 +39,7 @@ packaging==25.0
 pluggy==1.6.0
 propcache==0.4.1
 protobuf==6.33.5
-pydantic==2.11.4
+pydantic==2.12.5
 pydantic_core==2.34.1
 pydub==0.25.1
 pytest==8.3.5
