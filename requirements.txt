@@ -1,7 +1,5 @@
 wrapt==2.0.1
-aiobotocore==3.1.1
 s3transfer==0.16.0
-boto3==1.42.39
 pip==26.0
 aioboto3==15.5.0
 aiofiles==25.1.0
